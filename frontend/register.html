@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIoT Planter - 註冊</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body>
+  <header></header>
+
+  <main class="container">
+    <article x-data="registerForm()">
+      <header>
+        <strong>🌱 建立大師帳號</strong>
+      </header>
+
+      <form @submit.prevent="submitForm">
+        
+        <label for="username">帳號
+          <input id="username" type="text" x-model="formData.username" placeholder="請輸入帳號" required
+            autocomplete="username">
+        </label>
+
+        <label for="email">電子信箱
+          <input id="email" type="email" x-model="formData.email" placeholder="example@gmail.com" required
+            autocomplete="email">
+        </label>
+
+        <label for="password">密碼
+          <input id="password" type="password" x-model="formData.password" placeholder="請輸入密碼（至少 6 碼）" minlength="6"
+            required autocomplete="new-password">
+        </label>
+
+        <button type="submit" :aria-busy="isLoading" :disabled="isLoading || success">
+          <span x-text="isLoading ? '註冊中...' : '立即註冊'"></span>
+        </button>
+
+        <p x-show="msg" x-cloak
+          :style="{ color: isError ? 'var(--pico-del-color)' : 'var(--pico-ins-color)', marginTop: '0.5rem' }">
+          <small x-text="msg"></small>
+        </p>
+      </form>
+
+      <footer>
+        <small>已有帳號？ <a href="login.html">返回登入</a></small>
+      </footer>
+    </article>
+  </main>
+
+  <script>
+    const API_BASE = window.API_BASE || 'http://localhost:3000';
+
+    function registerForm() {
+      return {
+        formData: { username: '', email: '', password: '' },
+        isLoading: false,
+        msg: '',
+        isError: false,
+        success: false,
+
+        async submitForm() {
+          this.isLoading = true;
+          this.msg = '';
+          this.isError = false;
+
+          try {
+            const res = await fetch(`${API_BASE}/api/user`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.formData)
+            });
+            const result = await res.json();
+
+            if (result.success) {
+              this.success = true;
+              this.msg = '註冊成功！3 秒後跳轉至登入頁面...';
+              setTimeout(() => {
+                window.location.href = 'login.html';
+              }, 3000);
+            } else {
+              this.isError = true;
+              this.msg = result.error || '註冊失敗，請稍後再試';
+            }
+          } catch (err) {
+            console.error('註冊錯誤:', err);
+            this.isError = true;
+            this.msg = '連線失敗，請確認後端是否啟動';
+          } finally {
+            this.isLoading = false;
+          }
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>

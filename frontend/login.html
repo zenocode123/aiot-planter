@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIoT Planter - 登入</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body>
+  <header></header>
+
+  <main class="container">
+    <article x-data="loginForm()">
+      <header>
+        <strong>🌱 系統登入</strong>
+      </header>
+
+      <form @submit.prevent="submitForm">
+
+        <label for="username">帳號
+          <input id="username" type="text" x-model="formData.username" placeholder="請輸入帳號" required
+            autocomplete="username">
+        </label>
+
+        <label for="password">密碼
+          <input id="password" type="password" x-model="formData.password" placeholder="請輸入密碼" required
+            autocomplete="current-password">
+        </label>
+
+        <button type="submit" :aria-busy="isLoading">
+          <span x-text="isLoading ? '登入中...' : '登入'"></span>
+        </button>
+
+        <p x-show="errorMessage" x-cloak style="color: var(--pico-del-color); margin-top: 0.5rem;">
+          <small x-text="errorMessage"></small>
+        </p>
+      </form>
+
+      <footer>
+        <small>第一盆植物？ <a href="register.html">點我註冊</a></small>
+      </footer>
+    </article>
+  </main>
+
+  <script>
+    const API_BASE = window.API_BASE || 'http://localhost:3000';
+
+    function loginForm() {
+      return {
+        formData: { username: '', password: '' },
+        isLoading: false,
+        errorMessage: '',
+
+        async submitForm() {
+          this.isLoading = true;
+          this.errorMessage = '';
+
+          try {
+            const res = await fetch(`${API_BASE}/api/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.formData)
+            });
+            const result = await res.json();
+
+            if (result.success) {
+              localStorage.setItem('planter_token', result.data.token);
+              localStorage.setItem('planter_user', JSON.stringify(result.data.user));
+              window.location.href = 'dashboard.html';
+            } else {
+              this.errorMessage = result.error || '帳號或密碼錯誤';
+            }
+          } catch (err) {
+            console.error('登入錯誤:', err);
+            this.errorMessage = '伺服器連線失敗，請確認後端是否啟動';
+          } finally {
+            this.isLoading = false;
+          }
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>

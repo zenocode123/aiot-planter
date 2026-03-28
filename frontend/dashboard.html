@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIoT Planter - Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <style>
+    [x-cloak] {
+      display: none !important;
+    }
+
+    /* Offcanvas sidebar 固定高度，桌面版用 */
+    @media (min-width: 768px) {
+      #sidebar {
+        min-height: 100vh;
+      }
+    }
+  </style>
+</head>
+
+<body x-data="dashboard()" x-init="init()" x-cloak class="bg-light">
+
+  <!-- ========== 整體版面：sidebar + main ========== -->
+  <div class="d-md-flex min-vh-100">
+
+    <!-- ===== Sidebar (offcanvas-md) ===== -->
+    <div class="offcanvas-md offcanvas-start bg-dark text-white flex-shrink-0" tabindex="-1" id="sidebar"
+      style="width:220px;">
+
+      <!-- 行動版 header（有關閉按鈕） -->
+      <div class="offcanvas-header d-md-none border-bottom border-secondary">
+        <span class="offcanvas-title fw-bold text-white">🌿 AIoT Planter</span>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+          data-bs-target="#sidebar"></button>
+      </div>
+
+      <!-- Sidebar 內容 -->
+      <div class="offcanvas-body d-flex flex-column p-3">
+
+        <!-- 桌面版 brand -->
+        <div class="mb-4 d-none d-md-block pt-2">
+          <span class="fs-6 fw-bold">🌿 AIoT Planter</span>
+          <div class="mt-1">
+            <small class="text-white-50" x-text="username"></small>
+          </div>
+        </div>
+        <!-- 行動版 username -->
+        <div class="mb-3 d-md-none">
+          <small class="text-white-50" x-text="username"></small>
+        </div>
+
+        <!-- Nav links -->
+        <ul class="nav flex-column gap-1 flex-grow-1">
+          <li class="nav-item">
+            <a href="#" @click.prevent="currentView = 'dashboard'" data-bs-dismiss="offcanvas" :class="currentView === 'dashboard'
+               ? 'nav-link text-white bg-secondary rounded px-3 py-2 d-flex align-items-center gap-2'
+               : 'nav-link text-white-50 px-3 py-2 d-flex align-items-center gap-2'">
+              <!-- chart-bar -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" width="18" height="18" style="flex-shrink:0">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+              </svg>
+              Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" @click.prevent="currentView = 'settings'" data-bs-dismiss="offcanvas" :class="currentView === 'settings'
+               ? 'nav-link text-white bg-secondary rounded px-3 py-2 d-flex align-items-center gap-2'
+               : 'nav-link text-white-50 px-3 py-2 d-flex align-items-center gap-2'">
+              <!-- cog-6-tooth -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" width="18" height="18" style="flex-shrink:0">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+              設定
+            </a>
+          </li>
+        </ul>
+
+        <!-- 登出 -->
+        <div class="mt-auto">
+          <button class="btn btn-outline-light btn-sm w-100" @click="logout()">登出</button>
+        </div>
+      </div>
+    </div><!-- /sidebar -->
+
+
+    <!-- ===== Main Content ===== -->
+    <div class="flex-grow-1" style="min-width:0;">
+
+      <!-- 行動版頂部 Navbar（漢堡選單） -->
+      <nav class="navbar bg-dark d-md-none sticky-top px-3 py-2">
+        <button class="btn btn-link text-white p-0 border-0 me-2" data-bs-toggle="offcanvas" data-bs-target="#sidebar"
+          aria-controls="sidebar" aria-label="開啟選單">
+          <!-- bars-3-center-left -->
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor" width="24" height="24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+          </svg>
+        </button>
+        <span class="navbar-brand text-white fw-bold mb-0 fs-6">🌿 AIoT Planter</span>
+      </nav>
+
+      <!-- 頁面內容 -->
+      <div class="p-3 p-md-4">
+
+        <!-- ===== Dashboard View ===== -->
+        <div x-show="currentView === 'dashboard'">
+
+          <!-- Header -->
+          <div class="d-flex align-items-start align-items-md-center justify-content-between mb-4 gap-2">
+            <div>
+              <h5 class="mb-0 fw-bold">植物儀表板</h5>
+              <small class="text-muted">
+                裝置：<span x-text="settings.deviceId"></span>
+                <span x-show="lastUpdated">
+                  ・更新：<span x-text="formatTime(lastUpdated)"></span>
+                </span>
+              </small>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm flex-shrink-0" @click="fetchData()" :disabled="isLoading">
+              <span x-show="isLoading" class="spinner-border spinner-border-sm me-1" role="status"></span>
+              <span x-text="isLoading ? '更新中...' : '刷新'"></span>
+            </button>
+          </div>
+
+          <!-- Error Alert -->
+          <div class="alert alert-danger alert-dismissible" x-show="error" role="alert">
+            <span x-text="error"></span>
+            <button type="button" class="btn-close" @click="error = ''"></button>
+          </div>
+
+          <!-- Stat Cards -->
+          <div class="row g-3 mb-4">
+
+            <!-- Temperature -->
+            <div class="col-6 col-xl">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                  <!-- fire -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="#f97316" width="28" height="28" class="mb-2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" />
+                  </svg>
+                  <div class="text-muted small">溫度</div>
+                  <div class="fs-4 fw-bold text-danger" x-show="latestSensor">
+                    <span x-text="latestSensor?.temperature?.toFixed(1)"></span><span class="fs-6">°C</span>
+                  </div>
+                  <div x-show="!latestSensor && initialLoadDone" class="text-muted small">尚無資料</div>
+                  <div x-show="!initialLoadDone" class="text-center">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Humidity -->
+            <div class="col-6 col-xl">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                  <!-- eye-dropper -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="#3b82f6" width="28" height="28" class="mb-2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="m15 11.25 1.5 1.5.75-.75V8.758l2.276-.61a3 3 0 1 0-3.675-3.675l-.61 2.277H12l-.75.75 1.5 1.5M15 11.25l-8.47 8.47c-.34.34-.8.53-1.28.53s-.94.19-1.28.53l-.97.97-.75-.75.97-.97c.34-.34.53-.8.53-1.28s.19-.94.53-1.28L12.75 9M15 11.25 12.75 9" />
+                  </svg>
+
+                  <div class="text-muted small">濕度</div>
+                  <div class="fs-4 fw-bold text-primary" x-show="latestSensor">
+                    <span x-text="latestSensor?.humidity?.toFixed(1)"></span><span class="fs-6">%</span>
+                  </div>
+                  <div x-show="!latestSensor && initialLoadDone" class="text-muted small">尚無資料</div>
+                  <div x-show="!initialLoadDone" class="text-center">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Soil Moisture -->
+            <div class="col-6 col-xl">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                  <!-- beaker -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="#22c55e" width="28" height="28" class="mb-2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                  </svg>
+                  <div class="text-muted small">土壤濕度</div>
+                  <div class="fs-4 fw-bold text-success" x-show="latestSensor">
+                    <span x-text="latestSensor?.soil_moisture"></span><span class="fs-6">%</span>
+                  </div>
+                  <div x-show="!latestSensor && initialLoadDone" class="text-muted small">尚無資料</div>
+                  <div x-show="!initialLoadDone" class="text-center">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Light Level -->
+            <div class="col-6 col-xl">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                  <!-- sun -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="#eab308" width="28" height="28" class="mb-2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                  </svg>
+                  <div class="text-muted small">光照強度</div>
+                  <div class="fs-4 fw-bold text-warning" x-show="latestSensor">
+                    <span x-text="latestSensor?.light_level?.toFixed(0)"></span><span class="fs-6"> lux</span>
+                  </div>
+                  <div x-show="!latestSensor && initialLoadDone" class="text-muted small">尚無資料</div>
+                  <div x-show="!initialLoadDone" class="text-center">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mood -->
+            <div class="col-12 col-md-6 col-xl">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                  <div class="text-muted small mb-1">植物心情</div>
+                  <template x-if="latestMood">
+                    <div>
+                      <span class="badge fs-6" :class="'bg-' + (moodBadge[latestMood.mood] ?? 'secondary')"
+                        x-text="latestMood.mood">
+                      </span>
+                    </div>
+                  </template>
+                  <div x-show="!latestMood && initialLoadDone" class="text-muted small">尚無資料</div>
+                  <div x-show="!initialLoadDone" class="text-center">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /Stat Cards -->
+
+          <!-- Chart 1: Temperature + Humidity -->
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+              <h6 class="card-title text-muted mb-3">溫度 / 濕度 趨勢</h6>
+              <div id="chart-temp-humidity"></div>
+            </div>
+          </div>
+
+          <!-- Chart 2 + 3 -->
+          <div class="row g-4">
+            <div class="col-12 col-md-6">
+              <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                  <h6 class="card-title text-muted mb-3">土壤濕度 趨勢</h6>
+                  <div id="chart-soil"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                  <h6 class="card-title text-muted mb-3">光照強度 趨勢</h6>
+                  <div id="chart-light"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /Dashboard View -->
+
+
+        <!-- ===== Settings View ===== -->
+        <div x-show="currentView === 'settings'">
+          <h5 class="fw-bold mb-4">設定</h5>
+
+          <div class="d-flex flex-column gap-4" style="max-width:520px;">
+
+            <!-- 連線設定 -->
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <h6 class="card-title mb-3">連線設定</h6>
+                <div class="mb-3">
+                  <label class="form-label fw-medium">裝置 ID</label>
+                  <input type="text" class="form-control" x-model="settings.deviceId" placeholder="esp32-s3-01">
+                  <div class="form-text">感測器資料的裝置識別碼</div>
+                </div>
+                <div class="mb-4">
+                  <label class="form-label fw-medium">API 伺服器位址</label>
+                  <input type="text" class="form-control" x-model="settings.apiBase"
+                    placeholder="http://localhost:3000">
+                  <div class="form-text">後端 API 的完整 URL（不含結尾斜線）</div>
+                </div>
+                <button class="btn btn-primary btn-sm" @click="saveSettings()">儲存連線設定</button>
+                <span class="text-success small ms-2" x-show="settingsSaved">✅ 已儲存，資料刷新中...</span>
+              </div>
+            </div>
+
+            <!-- Email 通知設定 -->
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <h6 class="card-title mb-1">Email 通知設定</h6>
+                <p class="text-muted small mb-3">設定後，系統可定期將植物狀態與照片寄送至你的信箱。</p>
+
+                <div class="mb-3">
+                  <label class="form-label fw-medium">收件人 Email</label>
+                  <input type="email" class="form-control" x-model="emailSettings.recipient"
+                    placeholder="you@example.com">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-medium">寄件人 Gmail 帳號</label>
+                  <input type="email" class="form-control" x-model="emailSettings.senderEmail"
+                    placeholder="yourbot@gmail.com">
+                  <div class="form-text">用於發送通知的 Gmail 地址</div>
+                </div>
+                <div class="mb-4">
+                  <label class="form-label fw-medium">Gmail 應用程式密碼</label>
+                  <div class="input-group">
+                    <input :type="showAppPassword ? 'text' : 'password'" class="form-control font-monospace"
+                      x-model="emailSettings.appPassword" placeholder="xxxx xxxx xxxx xxxx" autocomplete="off">
+                    <button class="btn btn-outline-secondary btn-sm" type="button"
+                      @click="showAppPassword = !showAppPassword" x-text="showAppPassword ? '隱藏' : '顯示'"></button>
+                  </div>
+                  <div class="form-text">
+                    Google 帳號 → 安全性 → 兩步驟驗證 → 應用程式密碼。
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">前往設定 →</a>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-sm" @click="saveEmailSettings()">儲存 Email 設定</button>
+                <span class="text-success small ms-2" x-show="emailSettingsSaved">✅ 已儲存</span>
+              </div>
+            </div>
+
+          </div>
+        </div><!-- /Settings View -->
+
+      </div><!-- /p-3 p-md-4 -->
+    </div><!-- /Main -->
+
+  </div><!-- /d-md-flex -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js"></script>
+
+  <script>
+    const moodBadge = {
+      happy:   'success',
+      sad:     'primary',
+      sick:    'danger',
+      hot:     'warning',
+      thirsty: 'info',
+    };
+
+    function dashboard() {
+      return {
+        currentView: 'dashboard',
+        token: '',
+        username: '',
+        settings: {
+          deviceId: 'esp32-s3-01',
+          apiBase: 'http://localhost:3000',
+        },
+        settingsSaved: false,
+        emailSettings: {
+          recipient: '',
+          senderEmail: '',
+          appPassword: '',
+        },
+        emailSettingsSaved: false,
+        showAppPassword: false,
+        latestSensor: null,
+        latestMood: null,
+        sensorHistory: [],
+        initialLoadDone: false,
+        isLoading: false,
+        error: '',
+        lastUpdated: null,
+        refreshTimer: null,
+
+        // --- Lifecycle ---
+
+        async init() {
+          this.token = localStorage.getItem('planter_token');
+          if (!this.token) {
+            window.location.href = 'login.html';
+            return;
+          }
+
+          const user = JSON.parse(localStorage.getItem('planter_user') || '{}');
+          this.username = user.username || '';
+
+          const savedDeviceId = localStorage.getItem('planter_device_id');
+          const savedApiBase = localStorage.getItem('planter_api_base');
+          const savedRecipient = localStorage.getItem('planter_email_recipient');
+          const savedSender = localStorage.getItem('planter_email_sender');
+          const savedAppPassword = localStorage.getItem('planter_email_app_password');
+          if (savedDeviceId) this.settings.deviceId = savedDeviceId;
+          if (savedApiBase) this.settings.apiBase = savedApiBase;
+          if (savedRecipient) this.emailSettings.recipient = savedRecipient;
+          if (savedSender) this.emailSettings.senderEmail = savedSender;
+          if (savedAppPassword) this.emailSettings.appPassword = savedAppPassword;
+
+          await this.fetchData();
+          this.$nextTick(() => {
+            this.initCharts();
+            if (this.sensorHistory.length) this.updateCharts(this.sensorHistory);
+          });
+          this.refreshTimer = setInterval(() => { this.fetchData(); }, 30000);
+        },
+
+        // --- API ---
+
+        async fetchData() {
+          this.isLoading = true;
+          this.error = '';
+          try {
+            const { deviceId, apiBase } = this.settings;
+            const headers = { 'Authorization': `Bearer ${this.token}` };
+
+            const [latestRes, historyRes, moodRes] = await Promise.allSettled([
+              fetch(`${apiBase}/api/sensors/latest?device_id=${deviceId}`, { headers }),
+              fetch(`${apiBase}/api/sensors/history?device_id=${deviceId}&limit=50`, { headers }),
+              fetch(`${apiBase}/api/mood/latest?device_id=${deviceId}`, { headers }),
+            ]);
+
+            for (const r of [latestRes, historyRes, moodRes]) {
+              if (r.status === 'fulfilled' && r.value.status === 401) {
+                this.logout();
+                return;
+              }
+            }
+
+            if (latestRes.status === 'fulfilled' && latestRes.value.ok) {
+              const body = await latestRes.value.json();
+              if (body.success) this.latestSensor = body.data;
+            } else if (latestRes.status === 'rejected') {
+              this.error = '無法連線到伺服器，請確認後端是否啟動';
+            }
+
+            if (historyRes.status === 'fulfilled' && historyRes.value.ok) {
+              const body = await historyRes.value.json();
+              if (body.success && Array.isArray(body.data)) {
+                this.sensorHistory = [...body.data].reverse();
+                this.updateCharts(this.sensorHistory);
+              }
+            }
+
+            if (moodRes.status === 'fulfilled' && moodRes.value.ok) {
+              const body = await moodRes.value.json();
+              if (body.success) this.latestMood = body.data;
+            }
+
+            this.lastUpdated = new Date();
+          } catch (e) {
+            console.error('fetchData error:', e);
+            this.error = '資料載入發生錯誤，請重新整理';
+          } finally {
+            this.initialLoadDone = true;
+            this.isLoading = false;
+          }
+        },
+
+        // --- Charts ---
+
+        initCharts() {
+          const common = {
+            chart: { background: 'transparent', toolbar: { show: false } },
+            stroke: { curve: 'smooth', width: 2 },
+            tooltip: { x: { format: 'MM/dd HH:mm' } },
+            xaxis: { type: 'datetime', labels: { datetimeUTC: false } },
+          };
+
+          this.chartTempHumidity = new ApexCharts(
+            document.querySelector('#chart-temp-humidity'),
+            {
+              ...common,
+              chart: { ...common.chart, type: 'line', height: 260 },
+              series: [{ name: '溫度 (°C)', data: [] }, { name: '濕度 (%)', data: [] }],
+              yaxis: [
+                { title: { text: '°C' }, min: 0, max: 60, decimalsInFloat: 1 },
+                { opposite: true, title: { text: '%' }, min: 0, max: 100, decimalsInFloat: 1 },
+              ],
+              colors: ['#f97316', '#3b82f6'],
+              legend: { position: 'top' },
+            }
+          );
+          this.chartTempHumidity.render();
+
+          this.chartSoil = new ApexCharts(
+            document.querySelector('#chart-soil'),
+            {
+              ...common,
+              chart: { ...common.chart, type: 'area', height: 200 },
+              series: [{ name: '土壤濕度', data: [] }],
+              yaxis: { title: { text: '數值' }, min: 0 },
+              colors: ['#22c55e'],
+              fill: { type: 'gradient', gradient: { opacityFrom: 0.45, opacityTo: 0.05 } },
+            }
+          );
+          this.chartSoil.render();
+
+          this.chartLight = new ApexCharts(
+            document.querySelector('#chart-light'),
+            {
+              ...common,
+              chart: { ...common.chart, type: 'area', height: 200 },
+              series: [{ name: '光照強度 (lux)', data: [] }],
+              yaxis: { title: { text: 'lux' }, min: 0 },
+              colors: ['#eab308'],
+              fill: { type: 'gradient', gradient: { opacityFrom: 0.45, opacityTo: 0.05 } },
+            }
+          );
+          this.chartLight.render();
+        },
+
+        updateCharts(ordered) {
+          if (!this.chartTempHumidity) return;
+          const ts = r => new Date(r.CreatedAt).getTime();
+          this.chartTempHumidity.updateSeries([
+            { name: '溫度 (°C)', data: ordered.map(r => [ts(r), r.temperature]) },
+            { name: '濕度 (%)', data: ordered.map(r => [ts(r), r.humidity]) },
+          ]);
+          this.chartSoil.updateSeries([{ name: '土壤濕度', data: ordered.map(r => [ts(r), r.soil_moisture]) }]);
+          this.chartLight.updateSeries([{ name: '光照強度 (lux)', data: ordered.map(r => [ts(r), r.light_level]) }]);
+        },
+
+        // --- Settings ---
+
+        saveSettings() {
+          localStorage.setItem('planter_device_id', this.settings.deviceId);
+          localStorage.setItem('planter_api_base', this.settings.apiBase);
+          this.settingsSaved = true;
+          setTimeout(() => { this.settingsSaved = false; }, 2000);
+          this.fetchData();
+        },
+
+        saveEmailSettings() {
+          localStorage.setItem('planter_email_recipient', this.emailSettings.recipient);
+          localStorage.setItem('planter_email_sender', this.emailSettings.senderEmail);
+          localStorage.setItem('planter_email_app_password', this.emailSettings.appPassword);
+          this.emailSettingsSaved = true;
+          setTimeout(() => { this.emailSettingsSaved = false; }, 2000);
+        },
+
+        // --- Auth ---
+
+        logout() {
+          clearInterval(this.refreshTimer);
+          localStorage.removeItem('planter_token');
+          localStorage.removeItem('planter_user');
+          window.location.href = 'login.html';
+        },
+
+        // --- Helpers ---
+
+        formatTime(date) {
+          if (!date) return '';
+          return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        },
+      };
+    }
+  </script>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</body>
+
+</html>
