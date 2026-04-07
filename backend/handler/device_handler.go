@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
@@ -41,9 +42,16 @@ func CapturePhoto(mqttClient mqtt.Client) gin.HandlerFunc {
 			return
 		}
 
-		// 執行推播 (QoS 0，不保留 Retain)
+		// 執行推播 (QoS 0，不保留 Retain)，最多等待 5 秒
 		token := mqttClient.Publish(publishTopic, 0, false, jsonBytes)
-		token.Wait()
+		if !token.WaitTimeout(5 * time.Second) {
+			log.Printf("⚠️ MQTT 推播逾時: %s\n", publishTopic)
+			c.JSON(http.StatusGatewayTimeout, gin.H{
+				"success": false,
+				"error":   "MQTT 推送逾時",
+			})
+			return
+		}
 
 		if token.Error() != nil {
 			log.Printf("❌ 廣播拍照指令失敗: %v\n", token.Error())

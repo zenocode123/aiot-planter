@@ -288,6 +288,25 @@
 
           <div class="d-flex flex-column gap-4" style="max-width:520px;">
 
+            <!-- 個人資料 -->
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <h6 class="card-title mb-3">個人資料</h6>
+                <div class="mb-3">
+                  <label class="form-label fw-medium">使用者名稱</label>
+                  <input type="text" class="form-control" x-model="profile.username" placeholder="你的名稱">
+                </div>
+                <div class="mb-4">
+                  <label class="form-label fw-medium">Gmail 帳號</label>
+                  <input type="email" class="form-control" x-model="profile.email" placeholder="yourname@gmail.com">
+                  <div class="form-text">登入帳號，也是狀態報告的收件地址</div>
+                </div>
+                <button class="btn btn-primary btn-sm" @click="saveProfile()">儲存個人資料</button>
+                <span class="text-success small ms-2" x-show="profileSaved">✅ 已儲存</span>
+                <div x-show="profileError" class="text-danger small mt-2" x-text="profileError"></div>
+              </div>
+            </div>
+
             <!-- 連線設定 -->
             <div class="card border-0 shadow-sm">
               <div class="card-body">
@@ -311,35 +330,47 @@
             <!-- Email 通知設定 -->
             <div class="card border-0 shadow-sm">
               <div class="card-body">
-                <h6 class="card-title mb-1">Email 通知設定</h6>
-                <p class="text-muted small mb-3">設定後，系統可定期將植物狀態與照片寄送至你的信箱。</p>
+                <!-- 標題列 + 開關 -->
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <h6 class="card-title mb-0">Email 通知設定</h6>
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="notifySwitch"
+                      x-model="notifyEnabled">
+                    <label class="form-check-label small" for="notifySwitch"
+                      x-text="notifyEnabled ? '已開啟' : '已關閉'"></label>
+                  </div>
+                </div>
+                <p class="text-muted small mb-3">
+                  開啟後可將植物狀態報告寄送至：<strong x-text="currentUser.email || '（請先設定帳號 Gmail）'"></strong>
+                </p>
 
-                <div class="mb-3">
-                  <label class="form-label fw-medium">收件人 Email</label>
-                  <input type="email" class="form-control" x-model="emailSettings.recipient"
-                    placeholder="you@example.com">
-                </div>
-                <div class="mb-3">
-                  <label class="form-label fw-medium">寄件人 Gmail 帳號</label>
-                  <input type="email" class="form-control" x-model="emailSettings.senderEmail"
-                    placeholder="yourbot@gmail.com">
-                  <div class="form-text">用於發送通知的 Gmail 地址</div>
-                </div>
-                <div class="mb-4">
-                  <label class="form-label fw-medium">Gmail 應用程式密碼</label>
-                  <div class="input-group">
-                    <input :type="showAppPassword ? 'text' : 'password'" class="form-control font-monospace"
-                      x-model="emailSettings.appPassword" placeholder="xxxx xxxx xxxx xxxx" autocomplete="off">
-                    <button class="btn btn-outline-secondary btn-sm" type="button"
-                      @click="showAppPassword = !showAppPassword" x-text="showAppPassword ? '隱藏' : '顯示'"></button>
+                <!-- 開啟後才顯示的設定區 -->
+                <div x-show="notifyEnabled">
+                  <div class="mb-3">
+                    <label class="form-label fw-medium">Gmail 應用程式密碼</label>
+                    <div class="input-group">
+                      <input :type="showAppPassword ? 'text' : 'password'" class="form-control font-monospace"
+                        x-model="appPassword" placeholder="xxxx xxxx xxxx xxxx" autocomplete="off">
+                      <button class="btn btn-outline-secondary btn-sm" type="button"
+                        @click="showAppPassword = !showAppPassword"
+                        x-text="showAppPassword ? '隱藏' : '顯示'"></button>
+                    </div>
+                    <div class="form-text">
+                      Google 帳號 → 安全性 → 兩步驟驗證 → 應用程式密碼。
+                      <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">前往設定 →</a>
+                    </div>
                   </div>
-                  <div class="form-text">
-                    Google 帳號 → 安全性 → 兩步驟驗證 → 應用程式密碼。
-                    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">前往設定 →</a>
+                  <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                    <button class="btn btn-primary btn-sm" @click="saveAppPassword()">儲存密碼</button>
+                    <span class="text-success small" x-show="appPasswordSaved">✅ 已儲存</span>
                   </div>
+                  <button class="btn btn-success btn-sm" @click="sendNotification()" :disabled="isSendingNotify">
+                    <span x-show="isSendingNotify" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    <span x-text="isSendingNotify ? '寄送中...' : '📧 立即寄送植物狀態報告'"></span>
+                  </button>
+                  <div x-show="notifyResult === 'success'" class="alert alert-success mt-3 py-2 small mb-0" x-text="notifyMessage"></div>
+                  <div x-show="notifyResult === 'error'" class="alert alert-danger mt-3 py-2 small mb-0" x-text="notifyMessage"></div>
                 </div>
-                <button class="btn btn-primary btn-sm" @click="saveEmailSettings()">儲存 Email 設定</button>
-                <span class="text-success small ms-2" x-show="emailSettingsSaved">✅ 已儲存</span>
               </div>
             </div>
 
@@ -368,18 +399,22 @@
         currentView: 'dashboard',
         token: '',
         username: '',
+        currentUser: { id: null, username: '', email: '' },
         settings: {
           deviceId: 'esp32-s3-01',
           apiBase: 'http://localhost:3000',
         },
         settingsSaved: false,
-        emailSettings: {
-          recipient: '',
-          senderEmail: '',
-          appPassword: '',
-        },
-        emailSettingsSaved: false,
+        profile: { username: '', email: '' },
+        profileSaved: false,
+        profileError: '',
+        notifyEnabled: false,
+        appPassword: '',
+        appPasswordSaved: false,
         showAppPassword: false,
+        isSendingNotify: false,
+        notifyResult: '',
+        notifyMessage: '',
         latestSensor: null,
         latestMood: null,
         sensorHistory: [],
@@ -399,18 +434,20 @@
           }
 
           const user = JSON.parse(localStorage.getItem('planter_user') || '{}');
-          this.username = user.username || '';
+          this.currentUser = { id: user.ID || user.id || null, username: user.username || '', email: user.email || '' };
+          this.username = this.currentUser.username;
+          this.profile.username = this.currentUser.username;
+          this.profile.email = this.currentUser.email;
 
           const savedDeviceId = localStorage.getItem('planter_device_id');
           const savedApiBase = localStorage.getItem('planter_api_base');
-          const savedRecipient = localStorage.getItem('planter_email_recipient');
-          const savedSender = localStorage.getItem('planter_email_sender');
           const savedAppPassword = localStorage.getItem('planter_email_app_password');
           if (savedDeviceId) this.settings.deviceId = savedDeviceId;
           if (savedApiBase) this.settings.apiBase = savedApiBase;
-          if (savedRecipient) this.emailSettings.recipient = savedRecipient;
-          if (savedSender) this.emailSettings.senderEmail = savedSender;
-          if (savedAppPassword) this.emailSettings.appPassword = savedAppPassword;
+          if (savedAppPassword) {
+            this.appPassword = savedAppPassword;
+            this.notifyEnabled = true;
+          }
 
           await this.fetchData();
           this.$nextTick(() => {
@@ -546,12 +583,82 @@
           this.fetchData();
         },
 
-        saveEmailSettings() {
-          localStorage.setItem('planter_email_recipient', this.emailSettings.recipient);
-          localStorage.setItem('planter_email_sender', this.emailSettings.senderEmail);
-          localStorage.setItem('planter_email_app_password', this.emailSettings.appPassword);
-          this.emailSettingsSaved = true;
-          setTimeout(() => { this.emailSettingsSaved = false; }, 2000);
+        saveAppPassword() {
+          localStorage.setItem('planter_email_app_password', this.appPassword);
+          this.appPasswordSaved = true;
+          setTimeout(() => { this.appPasswordSaved = false; }, 2000);
+        },
+
+        async sendNotification() {
+          if (!this.appPassword) {
+            this.notifyResult = 'error';
+            this.notifyMessage = '請先填寫並儲存應用程式密碼';
+            return;
+          }
+          if (!this.currentUser.email) {
+            this.notifyResult = 'error';
+            this.notifyMessage = '找不到帳號 Email，請重新登入';
+            return;
+          }
+          this.isSendingNotify = true;
+          this.notifyResult = '';
+          this.notifyMessage = '';
+          try {
+            const resp = await fetch(`${this.settings.apiBase}/api/notify/send`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                device_id:    this.settings.deviceId,
+                recipient:    this.currentUser.email,
+                sender:       this.currentUser.email,
+                app_password: this.appPassword,
+              }),
+            });
+            const body = await resp.json();
+            if (resp.ok && body.success) {
+              this.notifyResult = 'success';
+              this.notifyMessage = body.message || `報告已寄送至 ${this.currentUser.email}！`;
+            } else {
+              this.notifyResult = 'error';
+              this.notifyMessage = body.error || '寄送失敗，請確認 Gmail 帳號與應用程式密碼是否正確';
+            }
+          } catch (e) {
+            this.notifyResult = 'error';
+            this.notifyMessage = '無法連線到伺服器，請確認後端是否啟動';
+          } finally {
+            this.isSendingNotify = false;
+          }
+        },
+
+        async saveProfile() {
+          if (!this.profile.username && !this.profile.email) return;
+          this.profileError = '';
+          this.profileSaved = false;
+          try {
+            const resp = await fetch(`${this.settings.apiBase}/api/user`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.token}`,
+              },
+              body: JSON.stringify({
+                username: this.profile.username,
+                email:    this.profile.email,
+              }),
+            });
+            const body = await resp.json();
+            if (resp.ok && body.success) {
+              this.currentUser = { ...this.currentUser, username: body.data.username, email: body.data.email };
+              this.username = body.data.username;
+              localStorage.setItem('planter_user', JSON.stringify(body.data));
+              this.profileSaved = true;
+              setTimeout(() => { this.profileSaved = false; }, 2000);
+            } else {
+              this.profileError = body.error || '更新失敗';
+            }
+          } catch (e) {
+            this.profileError = '無法連線到伺服器';
+          }
         },
 
         // --- Auth ---
