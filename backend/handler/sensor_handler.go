@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"aiot-planter/database"
 	"aiot-planter/model"
@@ -49,7 +50,7 @@ func GetLatestSensor(c *gin.Context) {
 }
 
 // GetSensorHistory 取得感測器歷史資料（供 Dashboard 圖表使用）
-// GET /api/sensors/history?device_id=X&limit=50
+// GET /api/sensors/history?device_id=X&limit=50&start_time=2024-01-01T00:00:00Z&end_time=2024-01-02T00:00:00Z
 func GetSensorHistory(c *gin.Context) {
 	deviceID := c.Query("device_id")
 	if deviceID == "" {
@@ -67,9 +68,57 @@ func GetSensorHistory(c *gin.Context) {
 		}
 	}
 
+	// 解析 start_time 和 end_time（RFC3339 格式）
+	// 若兩者皆未提供，預設回傳最近 24 小時的資料
+	var startTime, endTime time.Time
+	startStr := c.Query("start_time")
+	endStr := c.Query("end_time")
+
+	if startStr == "" && endStr == "" {
+		endTime = time.Now()
+		startTime = endTime.Add(-24 * time.Hour)
+	} else {
+		if startStr != "" {
+			parsed, err := time.Parse(time.RFC3339, startStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"error":   "start_time 格式錯誤，請使用 RFC3339 格式（例如 2024-01-01T00:00:00Z）",
+				})
+				return
+			}
+			startTime = parsed
+		}
+		if endStr != "" {
+			parsed, err := time.Parse(time.RFC3339, endStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"error":   "end_time 格式錯誤，請使用 RFC3339 格式（例如 2024-01-02T00:00:00Z）",
+				})
+				return
+			}
+			endTime = parsed
+		}
+		if !startTime.IsZero() && !endTime.IsZero() && endTime.Before(startTime) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "end_time 不能早於 start_time",
+			})
+			return
+		}
+	}
+
+	query := database.DB.Where("device_id = ?", deviceID)
+	if !startTime.IsZero() {
+		query = query.Where("created_at >= ?", startTime)
+	}
+	if !endTime.IsZero() {
+		query = query.Where("created_at <= ?", endTime)
+	}
+
 	var sensors []model.SensorRecord
-	result := database.DB.
-		Where("device_id = ?", deviceID).
+	result := query.
 		Order("created_at desc").
 		Limit(limit).
 		Find(&sensors)

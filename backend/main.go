@@ -24,6 +24,9 @@ func main() {
 	database.InitDB()
 
 	port := os.Getenv("PORT")
+	if port == "" {
+		log.Fatal("❌ PORT 未設定")
+	}
 
 	// 3. 設定並連接 MQTT
 	mqttClient := broker.SetupMQTT()
@@ -34,5 +37,7 @@ func main() {
 
 	router.Setup(r, mqttClient)
 
-	r.Run(":" + port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("❌ 伺服器啟動失敗: %v", err)
+	}
 }

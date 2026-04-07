@@ -13,17 +13,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// 註冊用 DTO (Data Transfer Object)
+// 註冊用 DTO
 type RegisterInput struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
-	Email    string `json:"email" binding:"required"`
+	Email    string `json:"email"    binding:"required,email"`
 }
 
-// 登入用 DTO (Data Transfer Object)
+// 登入用 DTO（以 email 為識別）
 type LoginInput struct {
-	Username string `json:"username" binding:"required"`
+	Email    string `json:"email"    binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+}
+
+// 更新個人資料用 DTO
+type UpdateUserInput struct {
+	Username string `json:"username"`
+	Email    string `json:"email" binding:"omitempty,email"`
 }
 
 func FindAllUsers(c *gin.Context) {
@@ -56,7 +62,6 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 2. 使用 bcrypt 進行密碼雜湊，14 是一個不錯的安全強度 (數字越大越慢但越難被破解)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -66,14 +71,12 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 3. 把收到的文字跟「加密後的密碼」塞回真正的 User Model
 	user := model.User{
 		Username: input.Username,
 		Email:    input.Email,
 		Password: string(hashedPassword),
 	}
 
-	// 4. 存入資料庫
 	r := database.DB.Create(&user)
 
 	if r.Error != nil {
@@ -84,7 +87,6 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 5. 回傳建立成功的物件
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data":    user,
@@ -94,7 +96,6 @@ func CreateUser(c *gin.Context) {
 func LoginUser(c *gin.Context) {
 	var input LoginInput
 
-	// 1. 確認前端傳來的 JSON 格式正不正確
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -105,16 +106,15 @@ func LoginUser(c *gin.Context) {
 
 	var user model.User
 
-	// 2. 用帳號去資料庫尋找使用者
-	if err := database.DB.Where("username = ?", input.Username).First(&user).Error; err != nil {
+	// 以 email 查詢使用者
+	if err := database.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"error":   "帳號或密碼錯誤", // 為防暴力破解，找不到帳號也要統一回覆「帳密錯誤」
+			"error":   "帳號或密碼錯誤",
 		})
 		return
 	}
 
-	// 3. 將資料庫的加密密碼與使用者輸入的明碼進行比對
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -123,20 +123,17 @@ func LoginUser(c *gin.Context) {
 		return
 	}
 
-	// 4. 準備產生 JWT 通關密語
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		log.Fatal("❌ JWT_SECRET 未設定")
 	}
 
-	// 宣告 Token 裡面要包什麼資料 (Payload)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  user.ID,
 		"username": user.Username,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(), // 設定 24 小時後過期
+		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
 
-	// 5. 將 Payload 與金鑰簽名打包成字串
 	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -146,13 +143,68 @@ func LoginUser(c *gin.Context) {
 		return
 	}
 
-	// 6. 登入成功！
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"token":        tokenString,
-			"user":         user,
-			"node_red_url": os.Getenv("NODE_RED_URL"),
+			"token": tokenString,
+			"user":  user,
 		},
+	})
+}
+
+func UpdateUser(c *gin.Context) {
+	var input UpdateUserInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "無效的資料格式: " + err.Error(),
+		})
+		return
+	}
+
+	if input.Username == "" && input.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "請至少提供一個要修改的欄位",
+		})
+		return
+	}
+
+	rawID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "無法識別使用者身分"})
+		return
+	}
+	userID := uint(rawID.(float64)) // JWT MapClaims 數字型別為 float64
+
+	var user model.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "找不到使用者",
+		})
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if input.Username != "" {
+		updates["username"] = input.Username
+	}
+	if input.Email != "" {
+		updates["email"] = input.Email
+	}
+
+	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "更新失敗 (帳號或信箱可能已被使用): " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    user,
 	})
 }

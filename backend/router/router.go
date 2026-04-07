@@ -77,6 +77,7 @@ func Setup(r *gin.Engine, mqttClient mqtt.Client) {
 			users := auth.Group("/user")
 			{
 				users.GET("", handler.FindAllUsers)
+				users.PUT("", handler.UpdateUser)
 			}
 		}
 	}

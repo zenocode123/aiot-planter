@@ -13,6 +13,9 @@ import (
 
 // UploadPhoto 負責接收由 ESP32 ESP-EYE 相機 HTTP POST 原生傳來的 JPEG 影像位元組
 func UploadPhoto(c *gin.Context) {
+	// 限制上傳大小為 10 MB，防止 OOM
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10<<20)
+
 	// 讀取請求中的所有二進制數據
 	imgData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
