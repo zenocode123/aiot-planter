@@ -64,8 +64,8 @@ func SendNotification(c *gin.Context) {
 		hasMood = false
 	}
 
-	// 3. 找最新照片（允許沒有）
-	latestPhoto := findLatestPhoto("./uploads")
+	// 3. 找最新照片（允許沒有，從裝置子目錄找）
+	latestPhoto := findLatestPhoto(fmt.Sprintf("./uploads/%s", input.DeviceId))
 
 	// 4. 組 HTML 郵件內容
 	body := buildEmailHTML(input.DeviceId, sensor, mood, hasMood)

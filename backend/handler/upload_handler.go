@@ -12,11 +12,20 @@ import (
 )
 
 // UploadPhoto 負責接收由 ESP32 ESP-EYE 相機 HTTP POST 原生傳來的 JPEG 影像位元組
+// 透過 query param device_id 區分裝置，照片存至 uploads/{device_id}/
 func UploadPhoto(c *gin.Context) {
+	deviceID := c.Query("device_id")
+	if deviceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "必須指定 device_id",
+		})
+		return
+	}
+
 	// 限制上傳大小為 10 MB，防止 OOM
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10<<20)
 
-	// 讀取請求中的所有二進制數據
 	imgData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -34,8 +43,8 @@ func UploadPhoto(c *gin.Context) {
 		return
 	}
 
-	// 確保 uploads 目錄存在
-	uploadDir := "./uploads"
+	// 確保 uploads/{device_id}/ 目錄存在
+	uploadDir := fmt.Sprintf("./uploads/%s", deviceID)
 	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
 		log.Printf("無法建立上傳資料夾: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -45,12 +54,10 @@ func UploadPhoto(c *gin.Context) {
 		return
 	}
 
-	// 利用時間戳記建立唯一的檔名
 	timestamp := time.Now().Format("20060102_150405")
 	fileName := fmt.Sprintf("capture_%s.jpg", timestamp)
 	filePath := fmt.Sprintf("%s/%s", uploadDir, fileName)
 
-	// 將二進制資料寫入本機檔案
 	if err := os.WriteFile(filePath, imgData, 0644); err != nil {
 		log.Printf("存檔失敗: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -66,6 +73,6 @@ func UploadPhoto(c *gin.Context) {
 		"success":   true,
 		"message":   "上傳成功",
 		"file_name": fileName,
-		"file_url":  fmt.Sprintf("/uploads/%s", fileName),
+		"file_url":  fmt.Sprintf("/uploads/%s/%s", deviceID, fileName),
 	})
 }

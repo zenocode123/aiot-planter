@@ -55,6 +55,8 @@ func Setup(r *gin.Engine, mqttClient mqtt.Client) {
 			sensors.GET("/history", handler.GetSensorHistory)
 		}
 
+
+
 		// 需要 JWT 驗證的路由（使用者身分相關）
 		auth := api.Group("")
 		auth.Use(middleware.AuthRequired())
@@ -72,6 +74,9 @@ func Setup(r *gin.Engine, mqttClient mqtt.Client) {
 				// /api/devices/esp32-s3-01/capture
 				devices.POST("/:id/capture", handler.CapturePhoto(mqttClient))
 			}
+
+			// 9. 照片生長紀錄
+			auth.GET("/photos", handler.GetPhotos)
 
 			// 4. 使用者相關端點
 			users := auth.Group("/user")
