@@ -82,8 +82,8 @@ void loop() {
   if (should_capture_photo) {
     // 1. reset
     should_capture_photo = false;  
-    // 2. API URL http://172.20.10.5:3000/api/upload
-    String apiUrl = String("http://") + MQTT_SERVER + ":" + String(BACKEND_PORT) + "/api/upload";
+    // 2. API URL http://172.20.10.5:3000/api/upload?device_id=esp32-s3-01
+    String apiUrl = String("http://") + MQTT_SERVER + ":" + String(BACKEND_PORT) + "/api/upload?device_id=" + DEVICE_ID;
     // 3. 執行拍照
     take_and_upload_photo(apiUrl);
   }

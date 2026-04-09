@@ -5,51 +5,78 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AIoT Planter - 註冊</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['DM Sans', 'sans-serif'], mono: ['DM Mono', 'monospace'] } } }
+    }
+  </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body>
-  <header></header>
+<body class="min-h-screen bg-zinc-50 flex items-center justify-center font-sans">
 
-  <main class="container">
-    <article x-data="registerForm()">
-      <header>
-        <strong>🌱 建立大師帳號</strong>
-      </header>
+  <div class="w-full max-w-sm px-4">
 
-      <form @submit.prevent="submitForm">
-        
-        <label for="username">帳號
-          <input id="username" type="text" x-model="formData.username" placeholder="請輸入帳號" required
-            autocomplete="username">
-        </label>
+    <div class="text-center mb-8">
+      <span class="font-mono text-sm text-zinc-900 tracking-tight">🌿 AIoT Planter</span>
+    </div>
 
-        <label for="email">電子信箱
-          <input id="email" type="email" x-model="formData.email" placeholder="example@gmail.com" required
-            autocomplete="email">
-        </label>
+    <div class="bg-white border border-zinc-200 rounded-2xl p-8 shadow-sm" x-data="registerForm()">
+      <h1 class="text-sm font-semibold text-zinc-900 mb-6">建立帳號</h1>
 
-        <label for="password">密碼
-          <input id="password" type="password" x-model="formData.password" placeholder="請輸入密碼（至少 6 碼）" minlength="6"
-            required autocomplete="new-password">
-        </label>
+      <form @submit.prevent="submitForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-zinc-500 mb-1.5">帳號</label>
+          <input type="text" x-model="formData.username" placeholder="請輸入帳號"
+            required autocomplete="username"
+            class="w-full px-3 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900
+                   placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900
+                   focus:border-transparent transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-zinc-500 mb-1.5">電子信箱</label>
+          <input type="email" x-model="formData.email" placeholder="example@gmail.com"
+            required autocomplete="email"
+            class="w-full px-3 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900
+                   placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900
+                   focus:border-transparent transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-zinc-500 mb-1.5">密碼</label>
+          <input type="password" x-model="formData.password" placeholder="請輸入密碼（至少 6 碼）"
+            minlength="6" required autocomplete="new-password"
+            class="w-full px-3 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900
+                   placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900
+                   focus:border-transparent transition">
+        </div>
 
-        <button type="submit" :aria-busy="isLoading" :disabled="isLoading || success">
+        <button type="submit" :disabled="isLoading || success"
+          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 mt-2
+                 bg-zinc-900 hover:bg-zinc-700 disabled:bg-zinc-300
+                 text-white text-sm font-medium rounded-lg transition">
+          <svg x-show="isLoading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
           <span x-text="isLoading ? '註冊中...' : '立即註冊'"></span>
         </button>
 
-        <p x-show="msg" x-cloak
-          :style="{ color: isError ? 'var(--pico-del-color)' : 'var(--pico-ins-color)', marginTop: '0.5rem' }">
-          <small x-text="msg"></small>
-        </p>
+        <p x-show="msg" class="text-xs text-center pt-1"
+          :class="isError ? 'text-red-500' : 'text-emerald-600'"
+          x-text="msg"></p>
       </form>
 
-      <footer>
-        <small>已有帳號？ <a href="login.html">返回登入</a></small>
-      </footer>
-    </article>
-  </main>
+      <p class="text-center text-xs text-zinc-400 mt-6">
+        已有帳號？
+        <a href="login.html" class="text-zinc-900 font-medium hover:underline">返回登入</a>
+      </p>
+    </div>
+
+  </div>
 
   <script>
     const API_BASE = window.API_BASE || 'http://localhost:3000';
@@ -66,7 +93,6 @@
           this.isLoading = true;
           this.msg = '';
           this.isError = false;
-
           try {
             const res = await fetch(`${API_BASE}/api/user`, {
               method: 'POST',
@@ -74,19 +100,15 @@
               body: JSON.stringify(this.formData)
             });
             const result = await res.json();
-
             if (result.success) {
               this.success = true;
               this.msg = '註冊成功！3 秒後跳轉至登入頁面...';
-              setTimeout(() => {
-                window.location.href = 'login.html';
-              }, 3000);
+              setTimeout(() => { window.location.href = 'login.html'; }, 3000);
             } else {
               this.isError = true;
               this.msg = result.error || '註冊失敗，請稍後再試';
             }
           } catch (err) {
-            console.error('註冊錯誤:', err);
             this.isError = true;
             this.msg = '連線失敗，請確認後端是否啟動';
           } finally {
@@ -96,6 +118,6 @@
       }
     }
   </script>
-</body>
 
+</body>
 </html>
