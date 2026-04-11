@@ -1,149 +1,439 @@
-# 🌱 AIoT Planter (智慧盆栽系統)
+# AIoT Planter — 智慧盆栽監控系統
 
-一個結合物聯網 (IoT)、邊緣硬體 (ESP32)、機器學習 (Machine Learning) 與現代化 Web 技術的智慧盆栽監控系統。
-本專案不僅能從遠端全天候監控植物的生長環境 (溫濕度、光照、土壤濕度)、即時拍照，還能根據機器學習推論出「植物的心情」，並生動地顯示在實體的 OLED 螢幕上！
+一個結合 **IoT 邊緣硬體、Go 後端 API、Python 機器學習與現代 Web 前端**的全端智慧盆栽系統。
+ESP32 感測器每 5 分鐘上報環境數據，Python 以 Random Forest 模型推論「植物心情」，並透過 MQTT 即時回饋至 ESP32 的 OLED 表情動畫；Web 儀表板提供即時圖表、遠端拍照與生長紀錄時間軸。
 
-## ✨ 主要特色 (Key Features)
+## 目錄
 
-- **邊緣硬體感知與互動**：基於 ESP32S3-EYE，整合 DHT 溫濕度計、土壤濕度計、BH1750 光照計，並搭載 OLED 螢幕 (RoboEyes) 即時呈現豐富表情動畫。
-- **IoT 雙向通訊機制**：使用 MQTT 協定，每 5 分鐘固定推播感測資料，並隨時監聽捕捉伺服器下達的指令 (例如：拍照、改變心情)。
-- **即時影像擷取**：整合 ESP32 相機模組，收到 `capture` 指令時，能立即拍攝植物影像並直接透過 HTTP POST 上傳至後端伺服器。
-- **機器學習推論**：(Python 端) 建立 Random Forest (隨機森林) 模型，分析多維度的植物環境數據並預測環境對於植物的健康壓力，轉化為「心情」。
-- **高併發微服務 API**：使用 Go & Gin 搭建符合 Clean Architecture 規範的「前後端分離」高延展性 RESTful 伺服器。
-- **無狀態安全認證**：採用 JWT (JSON Web Token) 配合 bcrypt 以保障連線終端與 Web 系統的使用者安全。
-
----
-
-## 🛠️ 技術棧 (Tech Stack)
-
-### IoT 硬體端 (ESP32 / C++)
-- **核心開發板**: ESP32S3-EYE
-- **感測器組件**: DHT11/22 (溫濕度)、Analog Soil Moisture (土壤水份)、BH1750 (I2C 光照)
-- **多媒體組件**: OV2640 相機模組 (支援 JPEG 壓縮)、SSD1306 OLED
-- **通訊與協定**: `WiFi.h`, `PubSubClient` (MQTT), `HTTPClient`, `ArduinoJson`
-- **UI/動畫庫**: `Adafruit_SSD1306`, `FluxGarage_RoboEyes`
-
-### 後端 API 伺服器 (Go)
-- **架構設計**: 前後端分離 (Decoupled)，單一入口點，高內聚 Controller 設計
-- **框架與 ORM**: Gin Web Framework, GORM
-- **資料庫**: SQLite3
-- **IoT 依賴**: `paho.mqtt.golang`
-
-### 前端客戶端 (Web / HTML)
-- **UI 框架**: Pico CSS (極簡優雅的 Classless CSS)
-- **互動邏輯**: Alpine.js (直接在 HTML 中撰寫的輕量級資料綁定)
-
-### 資料科學與機器學習 (Python)
-- **語言**: Python 3.12+ (使用 `uv` 依賴管理)
-- **核心模型**: `scikit-learn` (Random Forest Classifier)
+- [系統架構](#系統架構)
+- [技術棧](#技術棧)
+- [快速開始](#快速開始)
+  - [環境需求](#環境需求)
+  - [環境變數設定](#環境變數設定)
+  - [啟動 MQTT Broker](#啟動-mqtt-broker)
+  - [啟動 Go 後端](#啟動-go-後端)
+  - [啟動 Python 推論引擎](#啟動-python-推論引擎)
+  - [ESP32 韌體燒錄](#esp32-韌體燒錄)
+  - [存取前端](#存取前端)
+- [API 參考](#api-參考)
+- [MQTT 主題](#mqtt-主題)
+- [目錄結構](#目錄結構)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## 🚀 系統架構與資料流 (Architecture & Data Flow)
+## 系統架構
 
-### 1. 目錄結構
-
-```text
-├── backend/                  # Go 後端 API 核心
-│   ├── broker/               # MQTT 初始化與連線封裝
-│   ├── database/             # SQLite 連線與 ORM 模型遷移
-│   ├── handler/              # 獨立的控制器邏輯 (User, Sensor, Mood)
-│   ├── model/                # 資料庫 Schema 與 DTO 定義
-│   ├── router/               # Gin API 路由統一管理器
-│   └── main.go               # 輕量級應用程式啟動點
-├── esp32/                    # IoT 邊緣裝置 C++ 程式碼
-│   ├── env.h                 # (需建立) 硬體腳位配置與連線帳密
-│   ├── camera_module/        # ESP32 鏡頭初始化與 HTTP 上傳邏輯
-│   ├── connect_wifi/mqtt     # 連線保持與重新連線機制
-│   └── esp32.ino             # 主迴圈 (Non-Blocking 輪詢、表情更新)
-├── frontend/                 # 客戶端網頁
-│   ├── login.html            # 支援 Token LocalStorage 儲存的登入介面
-│   └── register.html         # 帳號註冊介面
-└── script/                   # Python 資料收集與機器學習
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          User Browser                           │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Frontend (HTML + Tailwind CSS + Alpine.js + ApexCharts) │   │
+│  │  login.html / register.html / dashboard.html             │   │
+│  └──────────────────┬──────────────────────────────────────┘   │
+└─────────────────────│───────────────────────────────────────────┘
+                      │ HTTP REST (JWT)
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Go Backend API  (Gin + GORM)  :3000                │
+│                                                                 │
+│  ┌──────────────┐  ┌────────────────┐  ┌───────────────────┐  │
+│  │  REST Router │  │   Handlers     │  │   MQTT Broker     │  │
+│  │  /api/...    │  │  sensor/mood/  │  │  (paho.mqtt.go)   │  │
+│  │  JWT Auth    │  │  photos/notify │  │  Subscribe/Publish│  │
+│  └──────┬───────┘  └───────┬────────┘  └────────┬──────────┘  │
+│         │                  │                     │              │
+│         └──────────────────▼─────────────────────┘             │
+│                     ┌────────────┐                              │
+│                     │  SQLite DB │                              │
+│                     │ (GORM ORM) │                              │
+│                     └────────────┘                              │
+└───────────────────────────────────────────────────────────────-─┘
+         ▲  MQTT (sensor data)          │  MQTT (mood / cmd)
+         │  HTTP POST (photo upload)    │
+         │                             ▼
+┌────────┴────────────────────────────────────────────────────────┐
+│                   ESP32-S3 Edge Device                          │
+│                                                                 │
+│  DHT11 ──► Temperature / Humidity                               │
+│  Soil  ──► Soil Moisture %         ──► JSON ──► MQTT publish   │
+│  BH1750──► Light Level (lux)                  every 5 minutes  │
+│                                                                 │
+│  OV2640──► JPEG capture ──► HTTP POST /api/upload              │
+│  SSD1306 + RoboEyes ◄── MQTT subscribe (mood / cmd)            │
+└─────────────────────────────────────────────────────────────────┘
+         │  HTTP GET /api/sensors/latest
+         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Python ML Inference Engine                         │
+│                                                                 │
+│  schedule (every 5min)                                          │
+│    ├── GET /api/sensors/latest                                  │
+│    ├── Random Forest predict(temp, humidity, soil, light)       │
+│    └── POST /api/mood  { mood: "happy" | "sad" | "sick" | ... } │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. 生態系資料流向 (End-to-End Flow)
-1. **[感知]**：ESP32 持續讀取 (`DHT`, `Soil`, `BH1750`) 數據。
-2. **[上拋]**：每 5 分鐘，ESP32 將這包感測據轉為 JSON，透過 MQTT (`aiot-planter/v1/devices/<id>/sensor`) 送出。
-3. **[儲存]**：Go 伺服器的 Broker 收到 MQTT 推播，透過 GORM 立即寫入 SQLite，並開放提供給 `/api/sensors/latest` 查詢。
-4. **[推論]**：Python 腳本拿著這些歷史數據送入 Random Forest，預測出心情 (例如 `"happy"`, `"sick"` , `"hot"`)，透過 HTTP POST 打向 Go 的 `/api/mood`。
-5. **[回饋]**：Go 伺服器將心情轉送至 MQTT `aiot-planter/v1/devices/<id>/mood`。ESP32 收到後，利用 RoboEyes 庫即時轉變 OLED 螢幕上這盆植物的「眼神」。
-6. **[互動]**：如果使用者想看植物現況，可透過 MQTT 發送 `{"cmd": "capture"}` 給 ESP32。ESP32 擷取即時相機畫面，利用 HTTP POST 實體圖片給 Go 的 `/api/upload`。
+### 端對端資料流
+
+1. **感知** — ESP32 每 5 分鐘讀取 DHT11 / BH1750 / 土壤感測器
+2. **上行** — 感測 JSON 透過 MQTT `aiot-planter/v1/devices/<id>/sensor` 送至 Broker
+3. **儲存** — Go Backend 收到 MQTT，透過 GORM 寫入 SQLite
+4. **推論** — Python 每 5 分鐘 GET 最新感測資料，餵給 Random Forest 模型，預測心情
+5. **下行** — Python POST `/api/mood` → Go 透過 MQTT `aiot-planter/v1/devices/<id>/mood` 通知 ESP32
+6. **表情** — ESP32 收到心情後，RoboEyes 在 OLED 呈現對應表情動畫
+7. **拍照** — 前端按下「拍照」→ POST `/api/devices/<id>/capture` → Go 發送 MQTT `{"cmd":"capture"}` → ESP32 拍照並 HTTP POST 至 `/api/upload?device_id=<id>`
+8. **通知** — 前端按下「寄送報告」→ POST `/api/notify/send` → Go 附上最新照片，Gmail SMTP 寄送 HTML 郵件
 
 ---
 
-## ⚙️ 環境配置與啟動 (Getting Started)
+## 技術棧
 
-### 第一部分：硬體設備 (ESP32) 燒錄設置
+| 層 | 技術 |
+|---|---|
+| **IoT 硬體** | ESP32-S3 (Arduino C++)、DHT11、BH1750 (I²C)、Soil ADC、OV2640 相機、SSD1306 OLED |
+| **IoT 韌體庫** | PubSubClient (MQTT)、ArduinoJson、HTTPClient、Adafruit_SSD1306、FluxGarage_RoboEyes |
+| **後端** | Go 1.21+、Gin、GORM、SQLite3、paho.mqtt.golang、golang-jwt、bcrypt、gomail |
+| **機器學習** | Python 3.11+、scikit-learn (Random Forest Classifier)、pandas、joblib、schedule、pydantic |
+| **前端** | Tailwind CSS (CDN)、Alpine.js v3、ApexCharts、DM Sans + DM Mono 字體 |
+| **通訊協定** | MQTT (Mosquitto)、HTTP REST、I²C、WiFi |
+| **資料庫** | SQLite (開發/生產皆適用) |
 
-1. 請使用 Arduino IDE 或 PlatformIO 打開 `esp32/esp32.ino`。
-2. 複製設定檔：在 `esp32/` 目錄中複製 `env.example` 並更名為 `env.h`。
-3. 填寫 `env.h` 必填資訊：
-    ```cpp
-    #define SSID_NAME "您的_WiFi名稱"
-    #define SSID_PASSWORD "您的_WiFi密碼"
-    
-    // 設定這盆植物獨一無二的 ID!
-    #define DEVICE_ID "esp32-s3-01"  
-    
-    #define MQTT_SERVER "192.168.x.x" // 您跑 Go 伺服器或 Broker 的內網 IP
-    #define BACKEND_PORT 3000         // Go 伺服器 API Port
-    ```
-4. 安裝依賴庫：`PubSubClient`, `ArduinoJson`, `DHT sensor library`, `BH1750`, `Adafruit SSD1306`, `FluxGarage_RoboEyes`。
-5. 連接所有 Sensor 到 ESP32 上設定好的腳位，然後燒錄 (Upload)！
+---
 
-### 第二部分：伺服器啟動 (Go Backend)
+## 快速開始
 
-在開始安裝前，請確保您的開發機或樹莓派已安裝 **Go 1.21+** 以及 **Mosquitto** 或任何 MQTT Broker。
+### 環境需求
+
+| 工具 | 最低版本 | 用途 |
+|---|---|---|
+| Go | 1.21+ | 後端 API |
+| Python | 3.11+ | ML 推論引擎 |
+| uv | 最新 | Python 套件管理 |
+| Mosquitto | 2.x | MQTT Broker |
+| Arduino IDE | 2.x | ESP32 韌體燒錄 |
 
 ```bash
-# 1. 複製環境變數範本並填寫 (記得替換 MQTT_BROKER 與 JWT_SECRET)
+# 安裝 Mosquitto（Raspberry Pi / Ubuntu）
+sudo apt-get install mosquitto mosquitto-clients
+
+# 安裝 uv（Python 套件管理器）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+---
+
+### 環境變數設定
+
+在專案根目錄複製並填寫 `.env`：
+
+```bash
 cp .env.example .env
+```
 
-# 2. 抓取依賴並編譯
+`.env` 完整範例：
+
+```env
+# 後端 Port
+PORT=3000
+
+# SQLite 資料庫名稱（不含 .db）
+DB_NAME=sq_db
+
+# MQTT Broker 連線資訊
+MQTT_BROKER=tcp://localhost:1883
+MQTT_CLIENT_ID=gin_client
+MQTT_TOPIC=aiot-planter/v1/devices/+/sensor
+
+# Python ML 推論目標裝置
+TARGET_DEVICE_ID=esp32-s3-01
+
+# JWT 簽章密鑰（請使用長且隨機的字串）
+JWT_SECRET=your-secret-key-here
+```
+
+生成安全的 JWT_SECRET：
+```bash
+openssl rand -base64 32
+```
+
+---
+
+### 啟動 MQTT Broker
+
+```bash
+# 啟動 Mosquitto（前景）
+mosquitto
+
+# 或以 systemd 背景服務執行
+sudo systemctl start mosquitto
+sudo systemctl enable mosquitto
+
+# 驗證 Broker 正在運作
+mosquitto_sub -t "aiot-planter/#" -v
+```
+
+---
+
+### 啟動 Go 後端
+
+```bash
 cd backend
-go mod tidy
-go build -o ../aiot-planter
 
-# 3. 回到主目錄執行 API 系統
+# 安裝依賴
+go mod tidy
+
+# 直接執行（開發模式）
+go run main.go
+
+# 或編譯後執行（生產建議）
+go build -o ../aiot-planter .
 cd ..
 ./aiot-planter
 ```
-> 若終端機印出 `✅ 成功連線並初始化資料庫` 以及 `✅ 成功連接到 MQTT Broker`，代表伺服器與硬體的橋樑已搭建完成。
 
-### 第三部分：存取前端 Web
-1. 打開瀏覽器，輸入 `http://<您的伺服器IP>:3000/frontend/login.html`。
-2. 點擊「註冊」建立您的專屬帳號。
-3. 登入成功後，系統將根據登入時 API 派發的 URL，自動引導您到 Node-RED Dashboard 等視覺化面板。
+成功啟動時終端機輸出：
+```
+✅ 成功連線並初始化資料庫
+✅ 成功連接到 MQTT Broker (tcp://localhost:1883)
+✉️ 正在監聽主題: aiot-planter/v1/devices/+/sensor
+[GIN-debug] Listening and serving HTTP on :3000
+```
 
----
-
-## 📡 API 與 MQTT 通訊手冊 
-
-### MQTT 主題設計 (Topics)
-- **上行資料 (ESP32 -> Server)**
-  - `aiot-planter/v1/devices/+/sensor`: 定時傳送 `{ "temperature": "25.0", "humidity": "60.0", "soil_moisture": 45, "light_level": "300.0" }`
-- **下行控制 (Server -> ESP32)**
-  - `aiot-planter/v1/devices/<id>/mood`: 下達指令 (`happy`, `sad`, `sick`, `hot` 或 `{ "cmd": "capture" }`)
-
-### Go HTTP REST API
-- `POST /api/user`: 系統註冊。
-- `POST /api/login`: 使用者登入，成功後核發 `JWT Token` 與前往跳轉的 `node_red_url` 資訊。
-- `GET /api/sensors/latest?device_id=xxx`: 給前端呼叫，取得資料表中該盆栽最新鮮的一筆感測記錄。
-- `POST /api/mood`: 接收 Python 的心情分析結果，轉派 MQTT 給 ESP32。
+靜態檔案伺服：Go 會自動將 `./uploads/` 目錄掛載至 `/uploads`，前端可直接存取照片 URL。
 
 ---
 
-## 👨‍💻 Troubleshooting (常見問題排解)
+### 啟動 Python 推論引擎
 
-**Q1: ESP32 的螢幕一直重複閃爍或重啟？**
-**A**: 發生此情況通常是 Brownout，相機與 OLED 同時啟動時瞬間電流消耗太大。請確認您的供電 (USB 或電池) 足以提供穩定至少 5V/1A 的電流。
+```bash
+cd python
 
-**Q2: ESP32 成功連線 Wifi 卻連不上 MQTT？**
-**A**: 請檢查 `env.h` 中的 `MQTT_SERVER` IP 是否為伺服器的區網 IP (如 192.168.x.x)。如果是填寫 `localhost` 會指向 ESP32 自己。
+# 安裝依賴（使用 uv）
+uv sync
 
-**Q3: 註冊帳號時出現 "無效的資料格式"？**
-**A**: 請開啟瀏覽器 `F12` > Network，檢查您送往後端的 JSON 格式是否確實包含了: `username`, `password`, `email`。
+# 執行推論引擎
+uv run main.py
+```
 
-**Q4: 相機拍照失敗並顯示鏡頭獲取錯誤？**
-**A**: OV2640 的線路接觸不良是很常發生的情況，請斷電後將鏡頭排線拔出重插一次。同時也請確認 ESP32S3-EYE 的腳位在 `env.h` 中是否沒有跟其他感測器衝突。
+首次啟動時會立刻執行一次預測，之後每 5 分鐘排程執行。
+
+若需要重新訓練模型：
+```bash
+# 以模擬資料重新訓練並儲存 planter_rf_model.joblib
+uv run train_model.py
+```
+
+---
+
+### ESP32 韌體燒錄
+
+#### 1. 安裝 Arduino 依賴庫
+
+在 Arduino IDE 的 Library Manager 安裝以下庫：
+
+| 庫名稱 | 版本 |
+|---|---|
+| PubSubClient | 2.8+ |
+| ArduinoJson | 7.x |
+| DHT sensor library (Adafruit) | 1.4+ |
+| BH1750 | 2.x |
+| Adafruit SSD1306 | 2.5+ |
+| FluxGarage RoboEyes | 最新 |
+
+#### 2. 建立硬體設定檔
+
+複製範例設定並填寫：
+
+```bash
+cp esp32/env.example.h esp32/env.h
+```
+
+`env.h` 必填項目：
+
+```cpp
+// WiFi 憑證
+#define SSID_NAME     "你的WiFi名稱"
+#define SSID_PASSWORD "你的WiFi密碼"
+
+// 此盆植物的唯一裝置 ID（需與 .env 中 TARGET_DEVICE_ID 一致）
+#define DEVICE_ID "esp32-s3-01"
+
+// Go 後端伺服器的區網 IP（不能填 localhost）
+#define MQTT_SERVER   "192.168.x.x"
+#define BACKEND_PORT  3000
+
+// MQTT 設定
+#define MQTT_PORT   1883
+#define MQTT_TOPIC  "aiot-planter/v1/devices/" DEVICE_ID "/sensor"
+```
+
+#### 3. 燒錄
+
+1. 在 Arduino IDE 選擇開發板：`ESP32S3 Dev Module`
+2. 連接 ESP32 至電腦，選擇對應 COM Port
+3. 點擊 Upload
+
+---
+
+### 存取前端
+
+後端啟動後，以瀏覽器開啟：
+
+```
+http://<伺服器IP>:3000/frontend/login.html
+```
+
+- 第一次使用先至 `register.html` 建立帳號
+- 登入後自動跳轉至 `dashboard.html`
+
+> **本機開發**：若後端與瀏覽器在同一台機器，使用 `http://localhost:3000/frontend/login.html`
+
+---
+
+## API 參考
+
+### 公開路由（不需 JWT）
+
+| Method | Endpoint | 說明 | Body |
+|---|---|---|---|
+| `POST` | `/api/user` | 註冊帳號 | `{ username, password, email }` |
+| `POST` | `/api/login` | 登入，回傳 JWT | `{ username, password }` |
+| `GET` | `/api/sensors/latest` | 取得最新感測值 | Query: `?device_id=<id>` |
+| `GET` | `/api/sensors/history` | 取得歷史感測記錄 | Query: `?device_id=<id>&limit=<n>` |
+| `POST` | `/api/upload` | ESP32 上傳照片（raw binary） | Query: `?device_id=<id>` |
+| `POST` | `/api/mood` | Python ML 寫入心情預測 | `{ device_id, mood }` |
+| `POST` | `/api/notify/send` | 寄送植物狀態 Email | `{ device_id, recipient, sender, app_password }` |
+
+### 需要 JWT 驗證（Header: `Authorization: Bearer <token>`）
+
+| Method | Endpoint | 說明 | Body/Query |
+|---|---|---|---|
+| `GET` | `/api/mood/latest` | 取得最新心情 | Query: `?device_id=<id>` |
+| `GET` | `/api/mood/history` | 取得心情歷史 | Query: `?device_id=<id>&limit=<n>` |
+| `POST` | `/api/devices/:id/capture` | 觸發 ESP32 拍照 | Path: `device_id` |
+| `GET` | `/api/photos` | 取得裝置照片生長紀錄 | Query: `?device_id=<id>&limit=<n>` |
+| `GET` | `/api/user` | 查詢所有使用者 | — |
+| `PUT` | `/api/user` | 更新使用者資料 | `{ username, email, ... }` |
+
+### 靜態資源
+
+| 路徑 | 說明 |
+|---|---|
+| `GET /uploads/<device_id>/<filename>.jpg` | 直接存取 ESP32 上傳的照片 |
+
+---
+
+## MQTT 主題
+
+| 方向 | 主題 | Payload | 說明 |
+|---|---|---|---|
+| ESP32 → Server | `aiot-planter/v1/devices/<id>/sensor` | `{ device_id, temperature, humidity, soil_moisture, light_level }` | 每 5 分鐘上報 |
+| Server → ESP32 | `aiot-planter/v1/devices/<id>/mood` | `happy` \| `sad` \| `sick` \| `hot` \| `normal` | Python ML 預測結果 |
+| Server → ESP32 | `aiot-planter/v1/devices/<id>/mood` | `{ "cmd": "capture" }` | 觸發 ESP32 拍照 |
+
+心情分類（Random Forest 輸出）：
+
+| 心情 | 說明 | OLED 表情 |
+|---|---|---|
+| `happy` | 環境適宜 | 😊 笑眼動畫 |
+| `normal` | 普通狀態 | 😐 眨眼 |
+| `sad` | 水分不足 | 😢 向下眼神 |
+| `sick` | 多項數值異常 | 🤒 困惑動畫 |
+| `hot` | 溫度過高 | 🥵 憤怒眼神 |
+
+---
+
+## 目錄結構
+
+```
+aiot-planter/
+├── .env                        # 環境變數（不進 git）
+├── .env.example                # 範例環境變數
+│
+├── backend/                    # Go 後端 API
+│   ├── main.go                 # 應用程式入口：初始化 DB、MQTT、Gin
+│   ├── go.mod / go.sum         # Go 模組依賴
+│   ├── broker/
+│   │   └── mqtt.go             # MQTT client 設定、訂閱感測資料
+│   ├── database/
+│   │   └── db.go               # SQLite 連線、GORM AutoMigrate
+│   ├── handler/
+│   │   ├── user_handler.go     # 帳號註冊、登入（bcrypt + JWT）
+│   │   ├── sensor_handler.go   # 感測資料 GET
+│   │   ├── mood_handler.go     # 心情讀寫 + MQTT 下行
+│   │   ├── device_handler.go   # 裝置控制（觸發拍照）
+│   │   ├── upload_handler.go   # ESP32 照片上傳（raw binary）
+│   │   ├── photos_handler.go   # 照片生長紀錄 GET（依裝置分類）
+│   │   └── notify_handler.go   # Email 通知（附最新照片）
+│   ├── middleware/
+│   │   └── auth.go             # JWT 驗證 Middleware
+│   ├── model/
+│   │   ├── user.go             # User GORM model
+│   │   ├── sensor.go           # SensorRecord GORM model
+│   │   └── mood.go             # MoodRecord GORM model
+│   ├── router/
+│   │   └── router.go           # Gin 路由統一設定（含 CORS）
+│   └── uploads/                # ESP32 照片儲存目錄
+│       └── <device_id>/        # 按裝置分類的子目錄
+│           └── capture_YYYYMMDD_HHMMSS.jpg
+│
+├── esp32/                      # ESP32-S3 韌體
+│   ├── esp32.ino               # 主程式（Non-Blocking 輪詢 + MQTT callback）
+│   ├── env.h                   # 硬體設定（WiFi/MQTT 帳密，不進 git）
+│   ├── env.example.h           # 設定檔範例
+│   ├── camera_module/          # OV2640 初始化 + JPEG 上傳邏輯
+│   ├── connect_wifi/           # WiFi 連線與重連
+│   ├── connect_mqtt/           # MQTT 重連機制
+│   └── soil/                   # 土壤感測器 ADC 校正與百分比換算
+│
+├── frontend/                   # Web 前端
+│   ├── login.html              # 登入頁
+│   ├── register.html           # 註冊頁
+│   └── dashboard.html          # 主儀表板（感測圖表、生長紀錄、設定）
+│
+└── python/                     # ML 推論引擎
+    ├── main.py                 # 排程推論入口（每 5 分鐘）
+    ├── train_model.py          # 模型訓練腳本
+    ├── generate_mock_data.py   # 模擬感測資料生成
+    ├── logger_config.py        # 結構化 Log 設定
+    ├── planter_rf_model.joblib # 已訓練的 Random Forest 模型
+    ├── sensors_dataset.csv     # 訓練用資料集
+    └── pyproject.toml          # uv 套件依賴定義
+```
+
+---
+
+## Troubleshooting
+
+**ESP32 螢幕一直重啟（Brownout）**
+
+相機與 OLED 同時啟動瞬間電流過大。請確認供電為穩定 5V / 1A 以上（建議使用 USB 充電頭而非電腦 USB 埠）。
+
+**ESP32 連上 WiFi 但無法連到 MQTT**
+
+`env.h` 中的 `MQTT_SERVER` 必須填區網 IP（如 `192.168.1.100`），不能填 `localhost`（那是 ESP32 自己）。
+
+**Go 後端啟動失敗：`MQTT_BROKER 未設定`**
+
+確認 `.env` 存在於專案根目錄（`backend/` 的上一層），且 `MQTT_BROKER` 未空白。
+
+**Python 推論結果沒有出現在儀表板**
+
+1. 確認 Go 後端已啟動且 `PORT` 一致
+2. 確認 `.env` 的 `TARGET_DEVICE_ID` 與 ESP32 `env.h` 的 `DEVICE_ID` 相同
+3. 查看 Python log — `ModelServer` 是否成功載入 `planter_rf_model.joblib`
+
+**前端圖表一片空白**
+
+開啟 F12 > Network，確認 `/api/sensors/history` 是否有回應。若 401，表示 JWT Token 遺失；若 404，表示該裝置 ID 尚無資料。
+
+**照片生長紀錄頁面看不到照片**
+
+1. 確認 ESP32 已成功拍照上傳（Go log 會顯示 `✅ 照片已儲存`）
+2. 確認 `backend/uploads/<device_id>/` 目錄下有 `.jpg` 檔案
+3. 直接瀏覽 `http://localhost:3000/uploads/<device_id>/<filename>.jpg` 確認靜態伺服是否正常
+
+**Email 寄送失敗**
+
+Gmail 需要使用「應用程式密碼」（App Password），不是帳號密碼。前往 Google 帳戶 > 安全性 > 兩步驟驗證 > 應用程式密碼 產生專屬密碼。
