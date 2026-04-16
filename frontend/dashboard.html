@@ -249,6 +249,40 @@
 
           </div><!-- /stat cards -->
 
+          <!-- Pump control card -->
+          <div class="bg-white border border-zinc-200 rounded-xl p-4 mb-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <!-- Status dot -->
+                <span class="relative flex h-2.5 w-2.5">
+                  <span x-show="isPumping"
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 transition-colors"
+                    :class="isPumping ? 'bg-blue-500' : 'bg-zinc-300'"></span>
+                </span>
+                <div>
+                  <p class="text-xs font-medium text-zinc-900">灌溉控制</p>
+                  <p class="font-mono text-[10px] text-zinc-400" x-text="isPumping ? '馬達運作中（1秒後自動關閉）' : '馬達待機'"></p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button @click="pumpControl('on')" :disabled="isPumping"
+                  class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                         bg-blue-50 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed text-blue-700 border border-blue-200">
+                  💧 灌溉
+                </button>
+                <button @click="pumpControl('off')"
+                  class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                         bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-600 border border-zinc-200">
+                  停止
+                </button>
+              </div>
+            </div>
+            <p x-show="pumpMessage" class="mt-2 text-xs"
+              :class="pumpResult === 'error' ? 'text-red-500' : 'text-emerald-600'"
+              x-text="pumpMessage"></p>
+          </div>
+
           <!-- Chart: Temp + Humidity -->
           <div class="bg-white border border-zinc-200 rounded-xl p-4 mb-3">
             <p class="text-xs text-zinc-500 mb-3">溫度 / 濕度 趨勢</p>
@@ -511,6 +545,9 @@
         isLoadingPhotos: false,
         photosError: '',
         selectedPhoto: null,
+        isPumping: false,
+        pumpResult: '',
+        pumpMessage: '',
 
         get groupedPhotos() {
           const groups = {};
@@ -680,6 +717,42 @@
           } finally {
             this.isCapturing = false;
             setTimeout(() => { this.captureMessage = ''; }, 5000);
+          }
+        },
+
+        // --- Pump ---
+
+        async pumpControl(action) {
+          this.pumpResult = '';
+          this.pumpMessage = '';
+          try {
+            const resp = await fetch(
+              `${this.settings.apiBase}/api/devices/${this.settings.deviceId}/pump`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${this.token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action }),
+              }
+            );
+            const body = await resp.json();
+            if (resp.ok && body.success) {
+              this.isPumping = (action === 'on');
+              this.pumpResult = 'success';
+              this.pumpMessage = action === 'on'
+                ? '💧 灌溉已啟動，1 秒後自動關閉'
+                : '🛑 馬達已停止';
+            } else {
+              this.pumpResult = 'error';
+              this.pumpMessage = body.error || '指令傳送失敗';
+            }
+          } catch (e) {
+            this.pumpResult = 'error';
+            this.pumpMessage = '無法連線到伺服器';
+          } finally {
+            setTimeout(() => { this.pumpMessage = ''; }, 5000);
           }
         },
 

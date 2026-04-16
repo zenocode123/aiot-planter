@@ -73,6 +73,8 @@ func Setup(r *gin.Engine, mqttClient mqtt.Client) {
 			{
 				// /api/devices/esp32-s3-01/capture
 				devices.POST("/:id/capture", handler.CapturePhoto(mqttClient))
+				// /api/devices/esp32-s3-01/pump  body: {"action":"on"} or {"action":"off"}
+				devices.POST("/:id/pump", handler.PumpControl(mqttClient))
 			}
 
 			// 9. 照片生長紀錄

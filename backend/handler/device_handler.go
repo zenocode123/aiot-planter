@@ -70,3 +70,67 @@ func CapturePhoto(mqttClient mqtt.Client) gin.HandlerFunc {
 		})
 	}
 }
+
+// PumpControl 發送 pump_on / pump_off 指令控制沈水馬達繼電器
+func PumpControl(mqttClient mqtt.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		deviceID := c.Param("id")
+		if deviceID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "未提供裝置 ID",
+			})
+			return
+		}
+
+		var body struct {
+			Action string `json:"action" binding:"required,oneof=on off"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   `action 欄位必填，值為 "on" 或 "off"`,
+			})
+			return
+		}
+
+		cmd := "pump_" + body.Action // "pump_on" or "pump_off"
+
+		publishTopic := fmt.Sprintf("aiot-planter/v1/devices/%s/cmd", deviceID)
+		payload := map[string]string{"cmd": cmd}
+
+		jsonBytes, err := json.Marshal(payload)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "JSON 編碼失敗",
+			})
+			return
+		}
+
+		token := mqttClient.Publish(publishTopic, 0, false, jsonBytes)
+		if !token.WaitTimeout(5 * time.Second) {
+			log.Printf("⚠️ MQTT 推播逾時: %s\n", publishTopic)
+			c.JSON(http.StatusGatewayTimeout, gin.H{
+				"success": false,
+				"error":   "MQTT 推送逾時",
+			})
+			return
+		}
+
+		if token.Error() != nil {
+			log.Printf("❌ 馬達指令推播失敗: %v\n", token.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "MQTT 推送失敗",
+			})
+			return
+		}
+
+		log.Printf("💧 已成功向 %s 送出馬達指令：%s\n", publishTopic, cmd)
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": fmt.Sprintf("馬達指令 [%s] 已送出", cmd),
+		})
+	}
+}

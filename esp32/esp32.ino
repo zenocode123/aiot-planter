@@ -27,6 +27,10 @@ void mqttCallback(char *topic, byte *payload, unsigned int length);
 // Set CAM False
 bool should_capture_photo = false;
 
+// 馬達控制狀態
+bool pump_is_on       = false;
+unsigned long pump_start_ms = 0;
+
 void setup() {
   Serial.begin(115200);
   // --- 初始化 WiFi ---
@@ -50,6 +54,9 @@ void setup() {
   dht_sensor.begin();
   // --- 初始化 BH1750 ---
   light_sensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, 0x23, &Wire);
+  // --- 初始化繼電器（Active-LOW 模組：HIGH = 關閉）---
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH);
   // --- 初始化 CAM ---
   init_camera();
 }
@@ -77,6 +84,13 @@ void loop() {
   }
 
   client.loop();
+
+  // 馬達安全計時器：超過 PUMP_MAX_ON_SEC 自動關閉
+  if (pump_is_on && (millis() - pump_start_ms > (unsigned long)PUMP_MAX_ON_SEC * 1000UL)) {
+    digitalWrite(RELAY_PIN, HIGH);  // Active-LOW：HIGH = 關閉
+    pump_is_on = false;
+    Serial.println("⚠️ 馬達安全保護：超時自動關閉");
+  }
 
   // CAM 觸發邏輯
   if (should_capture_photo) {
@@ -145,7 +159,20 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
     if (cmd == "capture") {
       should_capture_photo = true;
       Serial.println("收到拍照指令，將於主迴圈中拍攝。");
-      return;  // 若是 cmd 命令就直接返回，不改變心情
+      return;
+    }
+    if (cmd == "pump_on") {
+      digitalWrite(RELAY_PIN, LOW);   // Active-LOW：LOW = 繼電器導通
+      pump_is_on    = true;
+      pump_start_ms = millis();
+      Serial.println("💧 馬達啟動");
+      return;
+    }
+    if (cmd == "pump_off") {
+      digitalWrite(RELAY_PIN, HIGH);  // Active-LOW：HIGH = 繼電器斷開
+      pump_is_on = false;
+      Serial.println("🛑 馬達停止");
+      return;
     }
   }
 
