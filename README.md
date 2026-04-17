@@ -1,7 +1,9 @@
 # AIoT Planter — 智慧盆栽監控系統
 
 一個結合 **IoT 邊緣硬體、Go 後端 API、Python 機器學習與現代 Web 前端**的全端智慧盆栽系統。
-ESP32 感測器每 5 分鐘上報環境數據，Python 以 Random Forest 模型推論「植物心情」，並透過 MQTT 即時回饋至 ESP32 的 OLED 表情動畫；Web 儀表板提供即時圖表、遠端拍照與生長紀錄時間軸。
+ESP32 感測器每 5 分鐘上報環境數據，Python 以 Random Forest 模型推論「植物心情」，並透過 MQTT 即時回饋至 ESP32 的 OLED 表情動畫；Web 儀表板提供即時圖表、遠端拍照、生長紀錄時間軸與遠端灌溉控制。
+
+![硬體實體照片](IMG_8452.JPG)
 
 ## 目錄
 

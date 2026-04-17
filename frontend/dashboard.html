@@ -106,7 +106,10 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
           </svg>
         </button>
-        <span class="font-mono text-sm text-zinc-900">🌿 AIoT Planter</span>
+        <span class="font-mono text-sm text-zinc-900 flex-1">🌿 AIoT Planter</span>
+        <button @click="logout()" class="text-xs text-zinc-400 hover:text-zinc-700 transition-colors px-2 py-1">
+          登出
+        </button>
       </header>
 
       <!-- Page content -->
@@ -744,6 +747,9 @@
               this.pumpMessage = action === 'on'
                 ? '💧 灌溉已啟動，1 秒後自動關閉'
                 : '🛑 馬達已停止';
+              if (action === 'on') {
+                setTimeout(() => { this.isPumping = false; }, 1000);
+              }
             } else {
               this.pumpResult = 'error';
               this.pumpMessage = body.error || '指令傳送失敗';
